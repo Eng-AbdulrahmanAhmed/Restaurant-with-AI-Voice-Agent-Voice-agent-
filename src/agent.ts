@@ -1,11 +1,7 @@
 import { Agent, dedent, inference, tool } from '@livekit/agents';
 import { z } from 'zod';
-import {
-  loadMenu,
-  getMenuCategories,
-  search,
-  itemLines,
-} from './menu.ts';
+import { getMenuCategories, itemLines, loadMenu, search } from './menu.ts';
+
 // Build a custom voice AI assistant with the functional `Agent.create` API
 export function createAgent() {
   return Agent.create({
@@ -61,19 +57,20 @@ export function createAgent() {
         `,
         parameters: z.object({}),
         execute: async () => {
-        const items = await loadMenu();
+          const items = await loadMenu();
 
-        if (items.length === 0) {
-          return 'The menu is currently unavailable.';
-        }
+          if (items.length === 0) {
+            return 'The menu is currently unavailable.';
+          }
 
-        const categories = getMenuCategories(items);
+          const categories = getMenuCategories(items);
 
-        return `Available menu categories: ${categories.join(', ')}`;
-      },
-      }),tool({
-      name: 'search_menu',
-      description: dedent`
+          return `Available menu categories: ${categories.join(', ')}`;
+        },
+      }),
+      tool({
+        name: 'search_menu',
+        description: dedent`
         Search the BurgerHouse menu for food items matching the customer's request.
 
         Use this tool when a customer asks:
@@ -86,27 +83,27 @@ export function createAgent() {
         Only provide information returned by this tool.
         If no matching items are found, tell the customer politely.
       `,
-      parameters: z.object({
-        query: z.string().describe(
-          'The food item, category, ingredient, or keyword to search for.'
-        ),
+        parameters: z.object({
+          query: z
+            .string()
+            .describe('The food item, category, ingredient, or keyword to search for.'),
+        }),
+        execute: async ({ query }) => {
+          const items = await loadMenu();
+
+          if (items.length === 0) {
+            return 'The menu is currently unavailable.';
+          }
+
+          const matches = search(items, query);
+
+          if (matches.length === 0) {
+            return `No menu items matching "${query}" were found.`;
+          }
+
+          return itemLines(matches);
+        },
       }),
-      execute: async ({ query }) => {
-        const items = await loadMenu();
-
-        if (items.length === 0) {
-          return 'The menu is currently unavailable.';
-        }
-
-        const matches = search(items, query);
-
-        if (matches.length === 0) {
-          return `No menu items matching "${query}" were found.`;
-        }
-
-        return itemLines(matches);
-      },
-    }),
     ],
     // To use a realtime model instead of a voice pipeline, replace the LLM
     // with a realtime model and remove the stt, tts, turnHandling, and expressive

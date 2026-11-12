@@ -93,7 +93,7 @@ export default defineAgent({
   },
 });
 
-// Run the agent server 
+// Run the agent server
 cli.runApp(
   new ServerOptions({
     agent: fileURLToPath(import.meta.url),

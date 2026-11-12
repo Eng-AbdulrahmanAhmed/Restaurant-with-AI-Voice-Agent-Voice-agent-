@@ -1,9 +1,8 @@
-
-import dotenv from "dotenv";
-import { fileURLToPath } from "node:url";
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
 
 dotenv.config({
-  path: fileURLToPath(new URL("../.env.local", import.meta.url)),
+  path: fileURLToPath(new URL('../.env.local', import.meta.url)),
 });
 
 const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
@@ -37,7 +36,7 @@ export type MenuItem = {
 
 // Check environment variables
 if (!VOICE_MENU_API_SECRET || !url) {
-  throw new Error("Missing API credentials");
+  throw new Error('Missing API credentials');
 }
 
 // Menu cache
@@ -56,7 +55,7 @@ export async function loadMenu(): Promise<MenuItem[]> {
   try {
     // 2. Request menu from Next.js API
     const res = await fetch(`${url}/api/voice/menu`, {
-      method: "GET",
+      method: 'GET',
       headers: {
         Authorization: `Bearer ${VOICE_MENU_API_SECRET}`,
       },
@@ -72,12 +71,12 @@ export async function loadMenu(): Promise<MenuItem[]> {
 
     // 5. Check response structure
     if (
-      typeof body !== "object" ||
+      typeof body !== 'object' ||
       body === null ||
-      !("products" in body) ||
+      !('products' in body) ||
       !Array.isArray(body.products)
     ) {
-      throw new Error("Invalid menu API response");
+      throw new Error('Invalid menu API response');
     }
 
     // 6. Assign products
@@ -92,7 +91,7 @@ export async function loadMenu(): Promise<MenuItem[]> {
 
     return products;
   } catch (error) {
-    console.error("Failed to load menu:", error);
+    console.error('Failed to load menu:', error);
 
     throw new Error("Menu couldn't be retrieved", {
       cause: error,
@@ -110,15 +109,11 @@ export function groupOverview(items: MenuItem[]): string {
 
   return Object.entries(counts)
     .map(([category, count]) => `${category} (${count})`)
-    .join(", ");
+    .join(', ');
 }
 
 // Search products
-export function search(
-  items: MenuItem[],
-  query: string,
-  limit = 5
-): MenuItem[] {
+export function search(items: MenuItem[], query: string, limit = 5): MenuItem[] {
   const menuItems: MenuItem[] = [];
   const normalizedQuery = query.toLowerCase().trim();
 
@@ -129,12 +124,8 @@ export function search(
       item.name.toLowerCase().includes(normalizedQuery) ||
       item.category.toLowerCase().includes(normalizedQuery) ||
       item.description?.toLowerCase().includes(normalizedQuery) ||
-      item.aliases.some(alias =>
-        alias.toLowerCase().includes(normalizedQuery)
-      ) ||
-      item.ingredients.some(ingredient =>
-        ingredient.toLowerCase().includes(normalizedQuery)
-      )
+      item.aliases.some((alias) => alias.toLowerCase().includes(normalizedQuery)) ||
+      item.ingredients.some((ingredient) => ingredient.toLowerCase().includes(normalizedQuery))
     ) {
       menuItems.push(item);
     }
@@ -144,35 +135,30 @@ export function search(
 }
 
 // Format products into detailed readable text
-export function itemLines(
-  items: MenuItem[],
-  limit = 8
-): string {
+export function itemLines(items: MenuItem[], limit = 8): string {
   return items
     .slice(0, limit)
-    .map(item => {
+    .map((item) => {
       const variants = item.variants
         .map(
           (variant) =>
-      `${variant.name} (${variant.price} EGP, ${
-        variant.calories !== null
-          ? `${variant.calories} kcal`
-          : "calories not available"
-      })`
+            `${variant.name} (${variant.price} EGP, ${
+              variant.calories !== null ? `${variant.calories} kcal` : 'calories not available'
+            })`,
         )
-        .join(", ");
+        .join(', ');
 
       return [
         `${item.name} — ${item.price} EGP`,
-        `Description: ${item.description ?? "Not available"}`,
-        `Preparation time: ${item.prepTime ?? "Not available"}`,
-        `Spicy: ${item.spicy ? "Yes" : "No"}`,
-        `Variants: ${variants || "None"}`,
-      ].join("\n");
+        `Description: ${item.description ?? 'Not available'}`,
+        `Preparation time: ${item.prepTime ?? 'Not available'}`,
+        `Spicy: ${item.spicy ? 'Yes' : 'No'}`,
+        `Variants: ${variants || 'None'}`,
+      ].join('\n');
     })
-    .join("\n\n");
+    .join('\n\n');
 }
 
 export function getMenuCategories(items: MenuItem[]): string[] {
-  return [...new Set(items.map(item => item.category))];
+  return [...new Set(items.map((item) => item.category))];
 }
