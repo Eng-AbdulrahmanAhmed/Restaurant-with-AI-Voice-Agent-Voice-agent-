@@ -62,9 +62,6 @@ export default defineAgent({
       },
     });
 
-    // Connect to the room
-    await ctx.connect();
-
     // Greet the customer
     session.generateReply({
       instructions:
