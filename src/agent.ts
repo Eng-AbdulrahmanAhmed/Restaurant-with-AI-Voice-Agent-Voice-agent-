@@ -48,6 +48,10 @@ export function createAgent() {
       - Even if get_cart was called earlier in the conversation, call it again when answering a new cart-related question.
       - Never assume the cart has remained unchanged since the previous retrieval.
       - Never calculate, estimate, or modify the cart total yourself. Use the total and currency supplied by get_cart.
+      - Always call get_cart before removing a specific cart item.
+      - Use the exact cart item ID returned by get_cart.
+      - Before clearing the entire cart, ask the customer for confirmation.
+      - Only report success when the corresponding tool confirms success.
 
       # Accuracy and honesty
       - Only use information returned by connected tools.
@@ -340,6 +344,143 @@ export function createAgent() {
 
           return result.message;
         },
+      }),
+
+      // 7. Remove item from cart
+      tool({
+        name: 'remove_cart_item',
+        description: dedent`
+          Remove a specific item from the customer's shopping cart.
+
+          Use when the customer explicitly asks to remove or delete an item.
+
+          You must provide the exact cart item ID.
+
+          Always call get_cart first to identify the correct cart item.
+          Never guess the cart item ID.
+
+          If multiple cart items could match the customer's request,
+          ask which one they want to remove.
+        `,
+        parameters: z.object({
+          id: z.string().describe('The exact cart item ID to remove.'),
+        }),
+        execute: async ({ id }) => {
+          const room = getJobContext().room;
+
+          const participant = Array.from(room.remoteParticipants.values()).find(
+            (participant) => participant.identity.startsWith('guest-')
+          );
+
+          if (!participant || !room.localParticipant) {
+            return 'Could not connect to the browser. Please try again.';
+          }
+
+          const response = await room.localParticipant.performRpc({
+            destinationIdentity: participant.identity,
+            method: 'removeCartItem',
+            payload: JSON.stringify({ id }),
+            responseTimeout: 5000,
+          });
+
+          const result = JSON.parse(response);
+
+          return result.message;
+        },
+      }),
+
+      // 8. Clear cart
+      tool({
+        name: 'clear_cart',
+        description: dedent`
+          Remove all items from the customer's shopping cart.
+
+          Use only when the customer explicitly asks to empty or clear
+          their entire cart.
+
+          Do not use this tool when the customer wants to remove
+          only one item.
+
+          Ask for confirmation before clearing the entire cart.
+        `,
+        parameters: z.object({}),
+        execute: async () => {
+          const room = getJobContext().room;
+
+          const participant = Array.from(room.remoteParticipants.values()).find(
+            (participant) => participant.identity.startsWith('guest-')
+          );
+
+          if (!participant || !room.localParticipant) {
+            return 'Could not connect to the browser. Please try again.';
+          }
+
+          const response = await room.localParticipant.performRpc({
+            destinationIdentity: participant.identity,
+            method: 'clearCart',
+            payload: JSON.stringify({}),
+            responseTimeout: 5000,
+          });
+
+          const result = JSON.parse(response);
+
+          return result.message;
+        },
+      }),
+
+      // 9. Update quantity
+      tool({
+      name: "update_cart_quantity",
+      description: dedent`
+        Change the quantity of an existing item in the customer's cart.
+
+        Use this tool when the customer wants to increase or decrease
+        an item's quantity without removing the entire cart entry.
+
+        Examples:
+        - "Remove one burger" means delta = -1.
+        - "Add one more burger" means delta = 1.
+        - "Remove three burgers" means delta = -3.
+
+        Always use the exact cart item ID returned by get_cart.
+
+        Do not use this tool to remove an entire item.
+        Use remove_cart_item when the customer wants the item removed completely.
+      `,
+      parameters: z.object({
+        id: z.string().describe("The exact cart item ID."),
+        delta: z.number().int().refine(
+          (value) => value !== 0,
+          "Quantity change cannot be zero."
+        ).describe("Quantity change: positive to increase, negative to decrease."),
+      }),
+      execute: async ({ id, delta }) => {
+        const room = getJobContext().room;
+
+        const participant = Array.from(room.remoteParticipants.values()).find(
+          (participant) => participant.identity.startsWith("guest-")
+        );
+
+        if (!participant || !room.localParticipant) {
+          return "I couldn't connect to your cart. Please try again.";
+        }
+
+        try {
+          const response = await room.localParticipant.performRpc({
+            destinationIdentity: participant.identity,
+            method: "updateCartQty",
+            payload: JSON.stringify({ id, delta }),
+            responseTimeout: 5000,
+          });
+
+          const result = JSON.parse(response);
+
+          return result.message;
+        } catch (error) {
+          console.error("update_cart_quantity failed:", error);
+          return "I couldn't update that item's quantity. Please try again.";
+        }
+      },
       }),
     ],
   });
